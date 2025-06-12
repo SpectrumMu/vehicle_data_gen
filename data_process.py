@@ -3,7 +3,7 @@ import numpy as np
 from utils.utils import DataProcessor, ConfigYAML, Logger
 
 TEST = 0
-TRAIN_DATADIR = '/media/lucerna/DATA/kine_rand_uniform'
+TRAIN_DATADIR = '/home/mu/workspace/data/kine_rand_uniform'
 # TRAIN_DATADIR = '/home/lucerna/Documents/DATA/tuner_inn/track39'
 if TEST:
     DATADIR = TRAIN_DATADIR + '_test/'
@@ -17,7 +17,7 @@ logger = Logger(DATADIR, SAVE_NAME)
 logger.write_file(__file__)
 
 # vlist = np.hstack([np.arange(0, 1, 0.1) + i for i in np.arange(5, 9)])
-vlist = np.arange(5.0, 21.0, 1)
+vlist = np.arange(5.0, 20.0, 1)
 # flist = [0.5, 0.8, 1.1]
 flist = [1.0]
 print('vlist', vlist)
