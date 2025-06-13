@@ -13,6 +13,7 @@ from planner import pid
 from utils.mb_model_params import params_real
 from scipy.stats import truncnorm
 from utils.utils import utilitySuite
+from f1tenth_gym.envs.f110_env import F110Env
 # from moviepy.editor import ImageSequenceClip
 # import pyglet
 # pyglet.options['search_local_libs'] = True
@@ -129,13 +130,14 @@ def get_state(env, obs):
     # [x position, y position, yaw angle, steering angle, velocity, yaw rate, slip angle]
     
     state = np.zeros((1, 7))
-    state[0, 0] = obs['poses_x'][0]  # x position
-    state[0, 1] = obs['poses_y'][0]  # y position
-    state[0, 2] = obs['poses_theta'][0]  # yaw angle
-    state[0, 3] = env.render_obs["steering_angles"][0]  # steering angle
-    state[0, 4] = obs['linear_vels_x'][0]  # velocity
-    state[0, 5] = obs['ang_vels_z'][0]  # yaw rate
-    state[0, 6] = np.arctan2(obs['linear_vels_y'][0], obs['linear_vels_x'][0])  # slip angle
+    # state[0, 0] = obs['poses_x'][0]  # x position
+    # state[0, 1] = obs['poses_y'][0]  # y position
+    # state[0, 2] = obs['poses_theta'][0]  # yaw angle
+    # state[0, 3] = env.render_obs["steering_angles"][0]  # steering angle
+    # state[0, 4] = obs['linear_vels_x'][0]  # velocity
+    # state[0, 5] = obs['ang_vels_z'][0]  # yaw rate
+    # state[0, 6] = np.arctan2(obs['linear_vels_y'][0], obs['linear_vels_x'][0])  # slip angle
+    state = np.asarray(obs['std_state'][0])
     return state
 
 def warm_up(env, vel, warm_up_steps):
@@ -156,19 +158,24 @@ def warm_up(env, vel, warm_up_steps):
     """
     init_pose = np.zeros((1, 3))
 
+    # [x, y, steering angle, velocity, yaw, yaw_rate, beta]
     obs, _ = env.reset(
         # np.array([[0.0, 0.0, 0.0, 0.0, vel/1.1, 0.0, 0.0]])
         options={
-            "poses": init_pose
+            "poses": init_pose,
+            # "states": np.array([[0.0, 0.0, 0.0, vel/1.05, 0.0, 0.0, 0.0]]),
         }
     )
 
+    # return obs, env
+
+    # The following function is not used for latest gym
     step_count = 0
-    while (np.abs(obs['linear_vels_x'][0] - vel) > 0.5):
+    while ((get_state(obs)[3] - vel) > 0.5):
         try:
-            accel = (vel - obs['linear_vels_x'][0]) * 0.89
-            u_1 = obs['linear_vels_x'][0] + accel
-            obs, _, _, _, _ = env.step(np.array([[0, u_1]]))
+            accel = (vel - get_state(obs)[3]) * 0.89
+            u_1 = get_state(obs)[3] + accel
+            obs, _, _, _, _ = env.step(np.array([[u_1, 0]]))
             # print(, obs['linear_vels_y'][0], get_obs_vel(obs), vel)
             step_count += 1
             # print('warmup step: ', step_count, 'error', get_obs_vel(obs), vel)
@@ -245,38 +252,31 @@ def main():
         step_count = 0
         steering_count = 0
             
-        # init vector = [x,y,yaw,steering angle, velocity, yaw_rate, beta]
+        # init vector = [x, y, steering angle, velocity, yaw, yaw_rate, beta]
         if ACC_VS_CONTROL:
+            config = F110Env.default_config()
+            # config = env.default_config()
+            config['map'] = conf.map_path
+            config['timestep'] = INTEGRATION_DT
+            config['num_agents'] = 1
+            config['model'] = "st"
+            config["control_input"] = ["accl", "steering_angle"]
             env = gym.make(
-                'f1tenth_gym:f1tenth-v0', 
-                map=conf.map_path, 
-                map_ext=conf.map_ext,
-                num_agents=1, 
-                timestep=INTEGRATION_DT, 
-                model=GYM_MODEL, 
-                drive_control_mode='acc',
-                steering_control_mode='vel'
+                'f1tenth_gym:f1tenth-v0',
+                config=config, 
             )
         else:
+            config = F110Env.default_config()
+            config['map'] = conf.map_path
+            config['timestep'] = INTEGRATION_DT
+            config['num_agents'] = 1
+            config['model'] = "st"
+            config["control_input"] = ["speed", "steering_angle"]
             env = gym.make(
-                'f1tenth_gym:f1tenth-v0', 
-                # map=conf.map_path, 
-                # map_ext=conf.map_ext,
-                # num_agents=1, 
-                # timestep=INTEGRATION_DT, 
-                # # reset_fn=reset_fn,
-                # model=GYM_MODEL, 
-                # drive_control_mode='vel',
-                # steering_control_mode='angle'
+                'f1tenth_gym:f1tenth-v0',
+                config=config,
             )
-            default_config = env.default_config()
-            default_config['map'] = conf.map_path
-            default_config['timestep'] = INTEGRATION_DT
-            default_config['num_agents'] = 1
-            env.configure(
-                config=default_config,
-            )
-
+        print(env.config)
         
         # vel = np.random.uniform(start_vel-VEL_SAMPLE_UP/2, start_vel+VEL_SAMPLE_UP/2)
         
@@ -306,7 +306,7 @@ def main():
                     sv = np.clip(sv, -params_real['sv_max'], params_real['sv_max'])
                     control = np.array([sv, accl])
                 else:
-                    control = np.array([steer, vel])
+                    control = np.array([vel, steer])
 
                 pbar.update(1)
                 step_count += 1
@@ -318,6 +318,8 @@ def main():
                     
                     # Get the state and control
                     state_st_1 = get_state(env, obs)
+                    print('state_st_1', state_st_1)
+                    exit(0)
                     states.append(state_st_1 + np.random.normal(scale=NOISE[2], size=state_st_1.shape))
                     controls.append(control)
                     
