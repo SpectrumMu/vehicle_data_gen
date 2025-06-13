@@ -1,4 +1,7 @@
 import time
+import f1tenth_gym
+import f1tenth_gym.envs
+from requests import get
 import yaml
 import gymnasium as gym
 import numpy as np
@@ -25,13 +28,13 @@ NOISE = [0, 0, 0] # cxntrol_vel, control_steering, state
 EXP_NAME = 'kine_rand_uniform'
 GYM_MODEL = "dynamic_ST"
 INTEGRATION_DT = 0.1
-STEERING_LENGTH = 21e2 * 1
-RESET_STEP = 210
+STEERING_LENGTH = 25e2 * 5
+RESET_STEP = 250
 VEL_SAMPLE_UP = 3.0
 DENSITY_CURB = 0
 STEERING_PEAK_DENSITY = 1
 RENDER = 0
-PLOT = False
+PLOT = True
 ACC_VS_CONTROL = False # THIS IS TRUE BEFORE, IDK IF IT IS STILL TRUE
 SAVE_DIR = '/home/mu/workspace/data/' + EXP_NAME + '/'
 PEAK_NUM = 10
@@ -115,11 +118,11 @@ def get_obs_vel(obs):
     :param obs: observation dictionary
     :return: velocity
     """
-    vx = obs["linear_vels_x"][0]
-    vy = obs["linear_vels_y"][0]
-    return np.sqrt(vx**2 + vy**2)
+    states = get_state(obs)
+    vx = states[0, 3]  # x velocity
+    return vx
 
-def get_state(env, obs):
+def get_state(obs):
     """
     Get the state from the observation
     :param env: environment
@@ -128,16 +131,9 @@ def get_state(env, obs):
     """
     # State vector format:
     # [x position, y position, yaw angle, steering angle, velocity, yaw rate, slip angle]
-    
-    state = np.zeros((1, 7))
-    # state[0, 0] = obs['poses_x'][0]  # x position
-    # state[0, 1] = obs['poses_y'][0]  # y position
-    # state[0, 2] = obs['poses_theta'][0]  # yaw angle
-    # state[0, 3] = env.render_obs["steering_angles"][0]  # steering angle
-    # state[0, 4] = obs['linear_vels_x'][0]  # velocity
-    # state[0, 5] = obs['ang_vels_z'][0]  # yaw rate
-    # state[0, 6] = np.arctan2(obs['linear_vels_y'][0], obs['linear_vels_x'][0])  # slip angle
-    state = np.asarray(obs['std_state'][0])
+    # dict_keys(['scan', 'std_state', 'state', 'collision', 'lap_time', 'lap_count', 'sim_time', 'frenet_pose'])
+    state = np.asarray(obs['agent_0']['std_state'])
+    state = state.reshape((1, 7))  # Ensure state is a 2D array with shape (1, 7)
     return state
 
 def warm_up(env, vel, warm_up_steps):
@@ -171,12 +167,15 @@ def warm_up(env, vel, warm_up_steps):
 
     # The following function is not used for latest gym
     step_count = 0
-    while ((get_state(obs)[3] - vel) > 0.5):
+    state_v = 0
+    while (abs(state_v - vel) > 0.5):
         try:
-            accel = (vel - get_state(obs)[3]) * 0.89
-            u_1 = get_state(obs)[3] + accel
-            obs, _, _, _, _ = env.step(np.array([[u_1, 0]]))
+            accel = (vel - state_v) * 0.7
+            u_1 = state_v + accel
+            obs, _, _, _, _ = env.step(np.array([[0.0, u_1]]))
+            state_v = get_obs_vel(obs)
             # print(, obs['linear_vels_y'][0], get_obs_vel(obs), vel)
+            # print(step_count)
             step_count += 1
             # print('warmup step: ', step_count, 'error', get_obs_vel(obs), vel)
         except ZeroDivisionError:
@@ -189,11 +188,13 @@ def plot_sanity_check(total_states):
     Plots a sanity check for the total states.
     :param total_states: total states
     """
-    rand_num = np.random.uniform(0, 10)
+    rand_num = int(np.random.uniform(0, 10))
     print("Random number from 0 to 10:", rand_num)
     
     x = total_states[rand_num, :, 0]
     y = total_states[rand_num, :, 1]
+
+    # print('x', x.shape, 'y', y.shape)
 
     fig, ax = plt.subplots()
     line, = ax.plot([], [], 'b-', lw=2)
@@ -210,7 +211,7 @@ def plot_sanity_check(total_states):
 
     def update(frame):
         line.set_data(x[:frame], y[:frame])
-        point.set_data(x[frame], y[frame])
+        point.set_data([x[frame]], [y[frame]])
         return line, point
 
     ani = animation.FuncAnimation(fig, update, frames=len(x),
@@ -253,30 +254,46 @@ def main():
         steering_count = 0
             
         # init vector = [x, y, steering angle, velocity, yaw, yaw_rate, beta]
+        env_config = {
+            "seed": 12345,
+            "map": "example_map",
+            "map_scale": 1.0,
+            "params": f1tenth_gym.envs.f110_env.F110Env.f1tenth_vehicle_params(),
+            "num_agents": 1,
+            "timestep": 0.01,
+            "integrator_timestep": 0.01,
+            "ego_idx": 0,
+            "max_laps": 'inf',  # 'inf' for infinite laps, or a positive integer
+            "integrator": "rk4",
+            "model": "st", # "ks", "st", "mb"
+            "control_input": ["speed", "steering_angle"],
+            "observation_config": {"type": "direct"},
+            "reset_config": {"type": None},
+            "enable_rendering": False,
+            "enable_scan": False, # NOTE no lidar scan and collision if False
+            "lidar_fov" : 4.712389,
+            "lidar_num_beams": 1080,
+            "lidar_range": 30.0,
+            "lidar_noise_std": 0.01,
+            "steer_delay_buffer_size": 1,
+            "compute_frenet": True, 
+            "collision_check_method": "bounding_box", # "lidar_scan", "bounding_box"
+            "loop_counting_method": "frenet_based", # "toggle", "frenet_based", "winding_angle"
+        }
+        # env_config =
         if ACC_VS_CONTROL:
-            config = F110Env.default_config()
-            # config = env.default_config()
-            config['map'] = conf.map_path
-            config['timestep'] = INTEGRATION_DT
-            config['num_agents'] = 1
-            config['model'] = "st"
-            config["control_input"] = ["accl", "steering_angle"]
+            env_config["control_input"] = ["accl", "steering_angle"]
             env = gym.make(
                 'f1tenth_gym:f1tenth-v0',
-                config=config, 
+                config=env_config, 
             )
         else:
-            config = F110Env.default_config()
-            config['map'] = conf.map_path
-            config['timestep'] = INTEGRATION_DT
-            config['num_agents'] = 1
-            config['model'] = "st"
-            config["control_input"] = ["speed", "steering_angle"]
+            env_config["control_input"] = ["speed", "steering_angle"]
             env = gym.make(
                 'f1tenth_gym:f1tenth-v0',
-                config=config,
+                config=env_config,
             )
-        print(env.config)
+        # print(env.config)
         
         # vel = np.random.uniform(start_vel-VEL_SAMPLE_UP/2, start_vel+VEL_SAMPLE_UP/2)
         
@@ -306,7 +323,7 @@ def main():
                     sv = np.clip(sv, -params_real['sv_max'], params_real['sv_max'])
                     control = np.array([sv, accl])
                 else:
-                    control = np.array([vel, steer])
+                    control = np.array([steer, vel])
 
                 pbar.update(1)
                 step_count += 1
@@ -317,9 +334,7 @@ def main():
                     # frames.append()
                     
                     # Get the state and control
-                    state_st_1 = get_state(env, obs)
-                    print('state_st_1', state_st_1)
-                    exit(0)
+                    state_st_1 = get_state(obs)
                     states.append(state_st_1 + np.random.normal(scale=NOISE[2], size=state_st_1.shape))
                     controls.append(control)
                     
@@ -372,7 +387,7 @@ def main():
         if PLOT:
             plot_sanity_check(total_states)
         
-        env.close()
+        # env.close()
         print('Real elapsed time:', time.time() - start, 'states_f{}_v{}.npy'.format(int(np.rint(friction*10)), 
                                                             int(np.rint(start_vel*100))))
 
