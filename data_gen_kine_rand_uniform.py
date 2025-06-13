@@ -36,7 +36,7 @@ STEERING_PEAK_DENSITY = 1
 RENDER = 0
 PLOT = False
 ACC_VS_CONTROL = False # THIS IS TRUE BEFORE, IDK IF IT IS STILL TRUE
-SAVE_DIR = '/home/mu/workspace/data/' + EXP_NAME + '/'
+SAVE_DIR = '/home/mu/workspace/roboracer/data/' + EXP_NAME + '/'
 PEAK_NUM = 10
 # PEAK_NUM = int(STEERING_LENGTH/100 * STEERING_PEAK_DENSITY)
 
