@@ -1,3 +1,3 @@
-for i in $(seq 5.0 1.0 20.0); do  
+for i in $(seq 5.0 1.0 9.0); do  
     python3 data_gen_kine_rand_uniform.py "$i"
 done

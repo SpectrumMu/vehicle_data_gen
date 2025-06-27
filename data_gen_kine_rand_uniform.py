@@ -24,20 +24,24 @@ from f1tenth_gym.envs.f110_env import F110Env
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-NOISE = [0, 0, 0] # cxntrol_vel, control_steering, state 
-EXP_NAME = 'kine_rand_uniform'
-GYM_MODEL = "dynamic_ST"
-INTEGRATION_DT = 0.1
-STEERING_LENGTH = 25e2 * 5
-RESET_STEP = 250
-VEL_SAMPLE_UP = 3.0
-DENSITY_CURB = 0
-STEERING_PEAK_DENSITY = 1
-RENDER = 0
-PLOT = False
-ACC_VS_CONTROL = False # THIS IS TRUE BEFORE, IDK IF IT IS STILL TRUE
-SAVE_DIR = '/home/mu/workspace/roboracer/data/' + EXP_NAME + '/'
-PEAK_NUM = 10
+config = None
+with open('config/config.yaml') as file:
+    config = yaml.load(file, Loader=yaml.FullLoader)
+
+NOISE = config['simulation']['noise'] # control_vel, control_steering, state
+EXP_NAME = config['experiment']['name']
+GYM_MODEL = config['simulation']['gym_model']
+INTEGRATION_DT = config['simulation']['integration_dt']
+STEERING_LENGTH = config['simulation']['steering_length']
+RESET_STEP = config['simulation']['reset_step']
+VEL_SAMPLE_UP = float(config['simulation']['vel_sample_up'])
+DENSITY_CURB = int(config['simulation']['density_curb'])
+STEERING_PEAK_DENSITY = int(config['simulation']['steering_peak_density'])
+RENDER = bool(config['experiment']['render'])
+PLOT = bool(config['experiment']['plot'])
+ACC_VS_CONTROL = bool(config['experiment']['acc_vs_control'])
+SAVE_DIR = config['experiment']['save_dir']
+PEAK_NUM = config['simulation']['peak_num']
 # PEAK_NUM = int(STEERING_LENGTH/100 * STEERING_PEAK_DENSITY)
 
 with open('maps/config_example_map.yaml') as file:
@@ -171,7 +175,7 @@ def warm_up(env, vel, warm_up_steps):
     while (abs(state_v - vel) > 0.5):
         try:
             accel = (vel - state_v) * 0.7
-            u_1 = state_v + accel
+            u_1 = accel if ACC_VS_CONTROL else state_v + accel
             obs, _, _, _, _ = env.step(np.array([[0.0, u_1]]))
             state_v = get_obs_vel(obs)
             # print(, obs['linear_vels_y'][0], get_obs_vel(obs), vel)
@@ -180,7 +184,7 @@ def warm_up(env, vel, warm_up_steps):
             # print('warmup step: ', step_count, 'error', get_obs_vel(obs), vel)
         except ZeroDivisionError:
             print('error warmup: ', step_count)
-    print('warmup step: ', step_count, 'error', get_obs_vel(obs), vel)
+    # print('warmup step: ', step_count, 'error', get_obs_vel(obs), vel)
     return obs, env
 
 def plot_sanity_check(total_states):
@@ -216,11 +220,15 @@ def plot_sanity_check(total_states):
 
     ani = animation.FuncAnimation(fig, update, frames=len(x),
                                 init_func=init, blit=True, interval=50)
-    plt.show()
+    ani.save("sanity_check.gif", writer="pillow")
+    # plt.show()
 
 
 # frictions = [0.5, 0.8, 1.1]
-frictions = [1.0]
+# frictions = [1.0]
+frictions = config['frictions']
+# print('frictions', frictions)
+# exit(0)
 
 if len(sys.argv) > 1:
     start_vel = float(sys.argv[1])
@@ -266,7 +274,7 @@ def main():
             "max_laps": 'inf',  # 'inf' for infinite laps, or a positive integer
             "integrator": "rk4",
             "model": "st", # "ks", "st", "mb"
-            "control_input": ["speed", "steering_angle"],
+            "control_input": ["accl", "steering_angle"],
             "observation_config": {"type": "direct"},
             "reset_config": {"type": None},
             "enable_rendering": False,
@@ -312,7 +320,7 @@ def main():
                 if ACC_VS_CONTROL:
                     # steering angle velocity input to steering velocity acceleration input
                     # v_combined = np.sqrt(obs['x4'][0] ** 2 + obs['x11'][0] ** 2)
-                    state_st_0 = np.asarray(obs['state'][0])
+                    state_st_0 = obs['agent_0']['std_state']
                     v_combined = state_st_0[3]
                     
                     accl, sv = pid(vel, steer, v_combined, state_st_0[2], params_real['sv_max'], params_real['a_max'],
