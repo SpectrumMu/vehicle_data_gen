@@ -1,6 +1,6 @@
 experiment:
   name: "kine_rand_uniform"
-  save_dir: "/home/mu/workspace/roboracer/data/kine_rand_uniform/"
+  save_dir: "data/kine_rand_uniform/"
   render: false
   plot: false
   acc_vs_control: true

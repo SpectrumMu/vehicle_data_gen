@@ -17,6 +17,7 @@ from utils.mb_model_params import params_real
 from scipy.stats import truncnorm
 from utils.utils import utilitySuite
 from f1tenth_gym.envs.f110_env import F110Env
+from dotenv import load_dotenv
 # from moviepy.editor import ImageSequenceClip
 # import pyglet
 # pyglet.options['search_local_libs'] = True
@@ -27,6 +28,9 @@ import matplotlib.animation as animation
 config = None
 with open('config/config.yaml') as file:
     config = yaml.load(file, Loader=yaml.FullLoader)
+
+load_dotenv()  # automatically loads from .env in current dir
+ws_home = os.getenv("MY_WS_HOME")
 
 NOISE = config['simulation']['noise'] # control_vel, control_steering, state
 EXP_NAME = config['experiment']['name']
@@ -40,7 +44,7 @@ STEERING_PEAK_DENSITY = int(config['simulation']['steering_peak_density'])
 RENDER = bool(config['experiment']['render'])
 PLOT = bool(config['experiment']['plot'])
 ACC_VS_CONTROL = bool(config['experiment']['acc_vs_control'])
-SAVE_DIR = config['experiment']['save_dir']
+SAVE_DIR = ws_home + config['experiment']['save_dir']
 PEAK_NUM = config['simulation']['peak_num']
 # PEAK_NUM = int(STEERING_LENGTH/100 * STEERING_PEAK_DENSITY)
 
