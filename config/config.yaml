@@ -8,7 +8,7 @@ experiment:
 simulation:
   gym_model: "dynamic_ST"
   integration_dt: 0.1
-  steering_length: 2500
+  steering_length: 10000
   reset_step: 250
   vel_sample_up: 3.0
   density_curb: 0
@@ -24,13 +24,13 @@ environment:
   map_scale: 1.0
   seed: 12345
   num_agents: 1
-  timestep: 0.01
-  integrator_timestep: 0.01
+  timestep: 0.1
+  integrator_timestep: 0.1
   ego_idx: 0
   max_laps: "inf"
   integrator: "rk4"
   model: "st"
-  control_input: ["accl", "steering_angle"]
+  control_input: ["accl", "steering_speed"]
   observation_config:
     type: "direct"
   reset_config:
@@ -42,7 +42,7 @@ environment:
     num_beams: 1080
     range: 30.0
     noise_std: 0.01
-  steer_delay_buffer_size: 1
+  steer_delay_buffer_size: 0
   compute_frenet: true
   collision_check_method: "bounding_box"
   loop_counting_method: "frenet_based"

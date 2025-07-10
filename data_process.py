@@ -121,11 +121,11 @@ for ind, friction_ in enumerate(flist):
         dynamics = (states[:, 1:, :] - states[:, :-1, :]) / TIME_INTERVAL
         print(np.sum(dynamics * 0.1 + states[:, 0, :] - states[:, 1, :]))
         if (np.abs(np.sum(dynamics * 0.1 + states[:, 0, :] - states[:, 1, :])) > 0.01):
-            print(ind, friction_, segment_ind, 'dynamics not equal to states', 
-                  np.sum(dynamics * 0.1 + states[:, 0, :] - states[:, 1, :]))
-            print('states', states.shape, states[0, 0, :])
-            print('dynamics', dynamics.shape, dynamics[0, 0, :])
-            print('controls', controls.shape, controls[0, 0, :])
+            # print(ind, friction_, segment_ind, 'dynamics not equal to states', 
+            #       np.sum(dynamics * 0.1 + states[:, 0, :] - states[:, 1, :]))
+            # print('states', states.shape, states[0, 0, :])
+            # print('dynamics', dynamics.shape, dynamics[0, 0, :])
+            # print('controls', controls.shape, controls[0, 0, :])
             continue
         label = [ind] * dynamics.shape[0]
         

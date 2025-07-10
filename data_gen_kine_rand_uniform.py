@@ -287,8 +287,8 @@ def main():
             "lidar_num_beams": 1080,
             "lidar_range": 30.0,
             "lidar_noise_std": 0.01,
-            "steer_delay_buffer_size": 1,
-            "compute_frenet": True, 
+            "steer_delay_buffer_size": 0,
+            "compute_frenet": False, 
             "collision_check_method": "bounding_box", # "lidar_scan", "bounding_box"
             "loop_counting_method": "frenet_based", # "toggle", "frenet_based", "winding_angle"
         }
