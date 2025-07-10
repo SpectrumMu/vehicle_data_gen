@@ -178,7 +178,7 @@ def warm_up(env, vel, warm_up_steps):
     state_v = 0
     while (abs(state_v - vel) > 0.5):
         try:
-            accel = (vel - state_v) * 0.7
+            accel = (vel - state_v) * 0.1
             u_1 = accel if ACC_VS_CONTROL else state_v + accel
             obs, _, _, _, _ = env.step(np.array([[0.0, u_1]]))
             state_v = get_obs_vel(obs)
@@ -272,13 +272,13 @@ def main():
             "map_scale": 1.0,
             "params": f1tenth_gym.envs.f110_env.F110Env.f1tenth_vehicle_params(),
             "num_agents": 1,
-            "timestep": 0.01,
-            "integrator_timestep": 0.01,
+            "timestep": 0.1,
+            "integrator_timestep": 0.1,
             "ego_idx": 0,
             "max_laps": 'inf',  # 'inf' for infinite laps, or a positive integer
             "integrator": "rk4",
             "model": "st", # "ks", "st", "mb"
-            "control_input": ["accl", "steering_angle"],
+            "control_input": ["accl", "steering_speed"],
             "observation_config": {"type": "direct"},
             "reset_config": {"type": None},
             "enable_rendering": False,
@@ -294,13 +294,13 @@ def main():
         }
         # env_config =
         if ACC_VS_CONTROL:
-            env_config["control_input"] = ["accl", "steering_angle"]
+            env_config["control_input"] = ["accl", "steering_speed"]
             env = gym.make(
                 'f1tenth_gym:f1tenth-v0',
                 config=env_config, 
             )
         else:
-            env_config["control_input"] = ["speed", "steering_angle"]
+            env_config["control_input"] = ["speed", "steering_speed"]
             env = gym.make(
                 'f1tenth_gym:f1tenth-v0',
                 config=env_config,
@@ -391,9 +391,9 @@ def main():
         np.save(SAVE_DIR+'controls_f{}_v{}.npy'.format(int(np.rint(friction*10)), 
                                                                 int(np.rint(start_vel*100))), total_controls)
         
-        # axs = us.plt.get_fig([7, 1])
-        # for ind in range(7):
-        #     axs[ind].plot(np.arange(np.concatenate(total_states, axis=0).shape[0]), np.concatenate(total_states, axis=0)[:, ind], '.')        
+        axs = us.plt.get_fig([7, 1])
+        for ind in range(7):
+            axs[ind].plot(np.arange(np.concatenate(total_states, axis=0).shape[0]), np.concatenate(total_states, axis=0)[:, ind], '.')        
         # us.plt.show_pause()
 
         if PLOT:

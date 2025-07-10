@@ -8,7 +8,7 @@ experiment:
 simulation:
   gym_model: "dynamic_ST"
   integration_dt: 0.1
-  steering_length: 50000
+  steering_length: 2500
   reset_step: 250
   vel_sample_up: 3.0
   density_curb: 0
